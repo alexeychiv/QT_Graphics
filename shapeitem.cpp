@@ -135,18 +135,19 @@ void ShapeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     if (isMoving)
     {
         QPoint shift = event->pos().toPoint() - prevMousePos;
-        x += shift.rx();
-        y += shift.ry();
         prevMousePos = event->pos().toPoint();
+        qDebug() << shift;
+        scaledX += shift.rx();
+        scaledY += shift.ry();
         emit redraw();
     }
     else if (isRotating)
     {
         QPoint shift = event->pos().toPoint() - prevMousePos;
+        prevMousePos = event->pos().toPoint();
 
-        setTransformOriginPoint(scaledX, scaledY);
+        qDebug() << shift;
         QTransform newTransform = transform();
-
 
         if (shift.rx() > 0)
             newTransform.rotate(1);
@@ -154,6 +155,7 @@ void ShapeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             newTransform.rotate(-1);
 
         setTransform(newTransform);
+
     }
 }
 
