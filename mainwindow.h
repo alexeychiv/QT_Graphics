@@ -18,16 +18,23 @@ class MainWindow : public QMainWindow
 
     ShapeItem::ShapeType nextShapeType;
 
+    qreal scale;
+
+    QTransform baseTransform;
+
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
     void mousePressEvent(QMouseEvent *event) override;
+
+
 private:
     Ui::MainWindow *ui;
 
 public slots:
     void onRedraw();
     void onItemRightClicked(ShapeItem* item);
+    bool eventFilter(QObject *object, QEvent *event) override;
 };
 #endif // MAINWINDOW_H

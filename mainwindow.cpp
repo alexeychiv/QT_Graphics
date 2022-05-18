@@ -9,6 +9,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    ui->graphicsView->viewport()->installEventFilter(this);
+
     scene = new QGraphicsScene();
 
     scene->setSceneRect(0, 0, 800, 600);
@@ -18,6 +20,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     srand(time(0));
+
+    baseTransform = ui->graphicsView->transform();
+    scale = 1;
 }
 
 MainWindow::~MainWindow()
@@ -47,4 +52,31 @@ void MainWindow::onRedraw()
 void MainWindow::onItemRightClicked(ShapeItem *item)
 {
     scene->removeItem(item);
+}
+
+bool MainWindow::eventFilter(QObject *object, QEvent *event)
+{
+    if (object == ui->graphicsView->viewport() && event->type() == QEvent::Wheel)
+    {
+        QWheelEvent* wheelEvent = dynamic_cast<QWheelEvent*>(event);
+
+        if (!wheelEvent)
+            return false;
+
+        if (wheelEvent->angleDelta().ry() > 0)
+            scale += 0.1;
+        else
+            scale -= 0.1;
+
+        if (scale < 0.2)
+            scale = 0.2;
+
+        QTransform transform = baseTransform;
+        transform.scale(scale, scale);
+        ui->graphicsView->setTransform(transform);
+
+        return true;
+    }
+
+    return false;
 }

@@ -9,57 +9,46 @@ ShapeItem::ShapeType ShapeItem::getNextShapeType(const ShapeType &type)
     return (ShapeType)((int)type + 1);
 }
 
+//=========================================================================================
+
 ShapeItem::ShapeItem(qreal x, qreal y, qreal size, ShapeType type, QObject *parent)
     :
       QObject(parent),
       x(x - size / 2),
       y(y - size / 2),
       size(size),
-      type(type)
+      scale(1),
+      type(type),
+      isMoving(false),
+      isRotating(false)
 {
     QColor color(rand()%255, rand()%255, rand()%255);
     pen.setColor(color);
     brush.setColor(color);
     brush.setStyle(Qt::BrushStyle::SolidPattern);
+
+    applyScale(scale);
+
+    baseTransform = transform();
 }
 
 //=========================================================================================
 
 void ShapeItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
-    qDebug(__FUNCTION__);
-
     painter->setPen(pen);
     painter->setBrush(brush);
 
     switch (type)
     {
     case RECTANGLE:
-        painter->drawRect(x, y, size, size);
+        painter->drawRect(scaledX, scaledY, scaledSize, scaledSize);
         break;
     case ELLIPSE:
-        painter->drawEllipse(x, y, size, size);
+        painter->drawEllipse(scaledX, scaledY, scaledSize, scaledSize);
         break;
     case STAR:
-
-        QPolygon polygon;
-
-        qreal leftX = x;
-        qreal topY = y;
-        qreal rightX = x + size;
-        qreal bottomY = y + size;
-
-        polygon << QPoint(leftX, topY)
-                << QPoint(leftX + size / 2, topY + size / 3)
-                << QPoint(rightX, topY)
-                << QPoint(rightX - size / 3, topY + size / 2)
-                << QPoint(rightX, bottomY)
-                << QPoint(leftX + size / 2, bottomY - size / 3)
-                << QPoint(leftX, bottomY)
-                << QPoint(leftX + size / 3, topY + size / 2);
-
-        painter->drawPolygon(polygon);
-
+        painter->drawPolygon(starPolygon);
         break;
     }
 
@@ -69,46 +58,116 @@ void ShapeItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 
 QRectF ShapeItem::boundingRect() const
 {
-    return QRectF(x, y, size, size);
+    return QRectF(scaledX, scaledY, scaledSize, scaledSize);
+}
+
+void ShapeItem::applyScale(float scale)
+{
+    qreal newSize = size * scale;
+    qreal shift = (size - newSize) / 2;
+    scaledX = x + shift;
+    scaledY = y + shift;
+    scaledSize = newSize;
+
+    starPolygon = createStarPolygon();
+}
+
+QPolygon ShapeItem::createStarPolygon()
+{
+    QPolygon polygon;
+
+    qreal leftX = scaledX;
+    qreal topY = scaledY;
+    qreal rightX = leftX + scaledSize;
+    qreal bottomY = topY + scaledSize;
+
+    polygon << QPoint(leftX, topY)
+            << QPoint(leftX + scaledSize / 2, topY + scaledSize / 3)
+            << QPoint(rightX, topY)
+            << QPoint(rightX - scaledSize / 3, topY + scaledSize / 2)
+            << QPoint(rightX, bottomY)
+            << QPoint(leftX + scaledSize / 2, bottomY - scaledSize / 3)
+            << QPoint(leftX, bottomY)
+            << QPoint(leftX + scaledSize / 3, topY + scaledSize / 2);
+
+    return polygon;
 }
 
 //=========================================================================================
 
 void ShapeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
-    if (event->button() == Qt::RightButton)
-        emit rightClicked(this);
-    else if (event->button() == Qt::LeftButton)
+    switch (event->button())
     {
-        isMoving = true;
-        prevMousePos = event->pos().toPoint();
+        case Qt::RightButton:
+            emit rightClicked(this);
+            break;
+        case Qt::LeftButton:
+            isMoving = true;
+            prevMousePos = event->pos().toPoint();
+            break;
+        case Qt::MiddleButton:
+            isRotating = true;
+            prevMousePos = event->pos().toPoint();
+            break;
+        default:
+            break;
     }
 }
 
 void ShapeItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton)
-        isMoving = false;
+    switch (event->button())
+    {
+        case Qt::LeftButton:
+            isMoving = false;
+            break;
+        case Qt::MiddleButton:
+            isRotating = false;
+            break;
+        default:
+            break;
+    }
 }
 
 void ShapeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
     if (isMoving)
     {
-        qDebug(__FUNCTION__);
         QPoint shift = event->pos().toPoint() - prevMousePos;
-
-        qDebug() << shift;
-
         x += shift.rx();
         y += shift.ry();
-
         prevMousePos = event->pos().toPoint();
         emit redraw();
     }
+    else if (isRotating)
+    {
+        QPoint shift = event->pos().toPoint() - prevMousePos;
+
+        setTransformOriginPoint(scaledX, scaledY);
+        QTransform newTransform = transform();
+
+
+        if (shift.rx() > 0)
+            newTransform.rotate(1);
+        else
+            newTransform.rotate(-1);
+
+        setTransform(newTransform);
+    }
 }
 
-void ShapeItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
+void ShapeItem::wheelEvent(QGraphicsSceneWheelEvent *event)
 {
-    qDebug(__FUNCTION__);
+    if (event->delta() > 0)
+        scale += 0.1;
+    else
+        scale -= 0.1;
+
+    if (scale < 0.2)
+        scale = 0.2;
+
+    applyScale(scale);
+    emit redraw();
 }
+

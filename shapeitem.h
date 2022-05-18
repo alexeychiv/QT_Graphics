@@ -10,6 +10,7 @@
 class ShapeItem : public QObject, public QGraphicsItem
 {
     Q_OBJECT
+    Q_INTERFACES(QGraphicsItem)
 
 public:
     enum ShapeType
@@ -28,15 +29,25 @@ private:
     qreal y;
     qreal size;
 
+    qreal scaledX;
+    qreal scaledY;
+    qreal scaledSize;
+
+    float scale;
+
     ShapeType type;
 
     QPen pen;
     QBrush brush;
 
+    QPolygon starPolygon;
+
     bool isMoving;
     QPoint prevMousePos;
 
-    Q_INTERFACES(QGraphicsItem)
+    bool isRotating;
+
+    QTransform baseTransform;
 
 public:
     explicit ShapeItem(qreal x, qreal y, qreal size, ShapeType type, QObject *parent = nullptr);
@@ -46,6 +57,9 @@ private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     QRectF boundingRect() const override;
 
+    void applyScale(float scale);
+    QPolygon createStarPolygon();
+
 signals:
     void redraw();
     void rightClicked(ShapeItem* item);
@@ -54,7 +68,7 @@ protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-    void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
+    void wheelEvent(QGraphicsSceneWheelEvent *event) override;
 
 };
 
